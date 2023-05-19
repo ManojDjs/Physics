@@ -7,7 +7,7 @@
   <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
   <style>
     #app {
-      max-width: 600px;
+      /* max-width: 600px; */
       margin: 0 auto;
       padding: 20px;
     }
@@ -38,6 +38,17 @@
 </head>
 <body>
   <div id="app">
+    <div>
+      <h1>Time-Velocity for calculate Distance covered by car/human at certain speed at certain speed</h1>
+      <h4>Explanation:</h4>
+      <ul class="list-group">
+        <li class="list-group-item">The formula used to calculate the distance covered by the car is: distance = time * averageVelocity.</li>
+        <li class="list-group-item">Random speed values between the minimum and maximum speeds are generated for each time interval.</li>
+        <li class="list-group-item">The distances covered during each interval are summed up to calculate the total distance.</li>
+        <li class="list-group-item">The average speed is calculated by dividing the sum of average velocities by the number of intervals.</li>
+        <li class="list-group-item">The time-velocity graph is updated in real-time using Plotly.js library.</li>
+      </ul>
+    </div>
     <div class="form-group">
       <label for="timeInput">Time (minutes):</label>
       <input type="number" id="timeInput" min="0" v-model.number="timeInput" class="form-control" @input="updateDistance">
@@ -52,18 +63,19 @@
     </div>
     <div class="button-container">
       <button @click="calculateDistance" class="btn btn-primary">Calculate</button>
+      <div id="distance" v-if="distance !== ''">Distance covered: <span class="text-primary">{{ distance }}</span> km</div>
+      <div id="averageSpeed" v-if="averageSpeed !== ''">Average speed: <span class="text-primary">{{ averageSpeed }}</span> km/hr</div>
     </div>
     <div id="graph"></div>
-    <div id="distance" v-if="distance !== ''">Distance covered: <span class="text-primary">{{ distance }}</span> km</div>
-    <div id="averageSpeed" v-if="averageSpeed !== ''">Average speed: <span class="text-primary">{{ averageSpeed }}</span> km/hr</div>
+    
   </div>
 
   <script>
     const app = Vue.createApp({
       data() {
         return {
-          timeInput: 8,
-          minSpeedInput: 5,
+          timeInput: 10,
+          minSpeedInput: 20,
           maxSpeedInput: 60,
           distance: '',
           averageSpeed: '',
@@ -106,28 +118,14 @@
 
           let distance = 0;
           let totalSpeed = 0;
-          for (let i = 1; i < speeds.length; i++) {
-            const timeInterval = timeStep / 60; // Convert time interval to hours
-            const averageVelocity = (speeds[i] + speeds[i - 1]) / 2;
-            distance += timeInterval * averageVelocity;
-            totalSpeed += averageVelocity;
-          }
+          let times = [0];
+          let speedsData = [0];
 
-          const distanceInKm = distance; // Distance is already in kilometers
-          const averageSpeed = totalSpeed / numSteps;
-
-          // Create time data
-          const times = [];
-          for (let i = 0; i <= numSteps; i++) {
-            const time = i * timeStep;
-            times.push(time);
-          }
-
-          // Update the graph with the time-velocity curve
+          // Create the initial time-velocity curve
           const graphDiv = document.getElementById('graph');
           const trace = {
             x: times,
-            y: speeds,
+            y: speedsData,
             mode: 'lines',
             line: { shape: 'spline' },
             hovertemplate: 'Speed: %{y} km/hr',
@@ -140,9 +138,31 @@
           };
           Plotly.newPlot(graphDiv, data, layout);
 
-          // Display the calculated distance and average speed
-          this.distance = distanceInKm.toFixed(2);
-          this.averageSpeed = averageSpeed.toFixed(2);
+          // Update the graph and variables in real-time
+          let currentTime = timeStep;
+          const interval = setInterval(() => {
+            if (currentTime <= endTime) {
+              const time = currentTime.toFixed(1);
+              const speed = speeds[Math.floor(currentTime / timeStep)];
+              times.push(time);
+              speedsData.push(speed);
+              Plotly.update(graphDiv, {
+                x: [times],
+                y: [speedsData],
+              });
+              currentTime += timeStep;
+
+              // Update distance and average speed
+              const timeInterval = timeStep / 60; // Convert time interval to hours
+              const averageVelocity = (speed + speedsData[speedsData.length - 2]) / 2;
+              distance += timeInterval * averageVelocity;
+              totalSpeed += averageVelocity;
+              this.distance = distance.toFixed(2);
+              this.averageSpeed = (totalSpeed / (speedsData.length - 1)).toFixed(2);
+            } else {
+              clearInterval(interval);
+            }
+          }, 100);
         },
         updateDistance() {
           this.distance = '';
