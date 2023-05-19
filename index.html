@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Time-Velocity Graph and Distance Calculation</title>
+  <script src="https://unpkg.com/vue@3.3.0"></script>
+  <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+  <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+  <style>
+    #app {
+      max-width: 600px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+
+    .form-group {
+      margin-bottom: 10px;
+    }
+
+    .button-container {
+      text-align: center;
+      margin-top: 20px;
+    }
+
+    #graph {
+      margin-top: 20px;
+    }
+
+    #distance {
+      margin-top: 20px;
+      font-weight: bold;
+    }
+
+    #averageSpeed {
+      margin-top: 10px;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <div class="form-group">
+      <label for="timeInput">Time (minutes):</label>
+      <input type="number" id="timeInput" min="0" v-model.number="timeInput" class="form-control" @input="updateDistance">
+    </div>
+    <div class="form-group">
+      <label for="minSpeedInput">Minimum Speed (km/hr):</label>
+      <input type="number" id="minSpeedInput" min="0" v-model.number="minSpeedInput" class="form-control" @input="updateDistance">
+    </div>
+    <div class="form-group">
+      <label for="maxSpeedInput">Maximum Speed (km/hr):</label>
+      <input type="number" id="maxSpeedInput" min="0" v-model.number="maxSpeedInput" class="form-control" @input="updateDistance">
+    </div>
+    <div class="button-container">
+      <button @click="calculateDistance" class="btn btn-primary">Calculate</button>
+    </div>
+    <div id="graph"></div>
+    <div id="distance" v-if="distance !== ''">Distance covered: <span class="text-primary">{{ distance }}</span> km</div>
+    <div id="averageSpeed" v-if="averageSpeed !== ''">Average speed: <span class="text-primary">{{ averageSpeed }}</span> km/hr</div>
+  </div>
+
+  <script>
+    const app = Vue.createApp({
+      data() {
+        return {
+          timeInput: 8,
+          minSpeedInput: 5,
+          maxSpeedInput: 60,
+          distance: '',
+          averageSpeed: '',
+        };
+      },
+      mounted() {
+        this.calculateDistance();
+      },
+      methods: {
+        // Generate random speed data until the given time
+        generateRandomSpeeds(time, timeStep, minSpeed, maxSpeed) {
+          const speeds = [0];
+          let currentTime = timeStep;
+          while (currentTime <= time) {
+            const speed = Math.random() * (maxSpeed - minSpeed) + minSpeed; // Random speed between minSpeed and maxSpeed km/hr
+            speeds.push(speed);
+            currentTime += timeStep;
+          }
+          return speeds;
+        },
+        // Calculate the distance covered by the car
+        calculateDistance() {
+          const inputMinutes = parseFloat(this.timeInput);
+          const minSpeed = parseFloat(this.minSpeedInput);
+          const maxSpeed = parseFloat(this.maxSpeedInput);
+          if (isNaN(inputMinutes) || inputMinutes < 0 || isNaN(minSpeed) || minSpeed < 0 || isNaN(maxSpeed) || maxSpeed < 0) {
+            alert('Please enter valid positive numbers for time, minimum speed, and maximum speed.');
+            return;
+          }
+          if (minSpeed > maxSpeed) {
+            alert('Minimum speed cannot be greater than maximum speed.');
+            return;
+          }
+
+          const timeStep = 0.1;
+          const numSteps = Math.floor(inputMinutes / timeStep);
+          const endTime = numSteps * timeStep;
+
+          const speeds = this.generateRandomSpeeds(endTime, timeStep, minSpeed, maxSpeed);
+
+          let distance = 0;
+          let totalSpeed = 0;
+          for (let i = 1; i < speeds.length; i++) {
+            const timeInterval = timeStep / 60; // Convert time interval to hours
+            const averageVelocity = (speeds[i] + speeds[i - 1]) / 2;
+            distance += timeInterval * averageVelocity;
+            totalSpeed += averageVelocity;
+          }
+
+          const distanceInKm = distance; // Distance is already in kilometers
+          const averageSpeed = totalSpeed / numSteps;
+
+          // Create time data
+          const times = [];
+          for (let i = 0; i <= numSteps; i++) {
+            const time = i * timeStep;
+            times.push(time);
+          }
+
+          // Update the graph with the time-velocity curve
+          const graphDiv = document.getElementById('graph');
+          const trace = {
+            x: times,
+            y: speeds,
+            mode: 'lines',
+            line: { shape: 'spline' },
+            hovertemplate: 'Speed: %{y} km/hr',
+          };
+          const data = [trace];
+          const layout = {
+            title: 'Time-Velocity Graph',
+            xaxis: { title: 'Time (minutes)' },
+            yaxis: { title: 'Velocity (km/hr)' },
+          };
+          Plotly.newPlot(graphDiv, data, layout);
+
+          // Display the calculated distance and average speed
+          this.distance = distanceInKm.toFixed(2);
+          this.averageSpeed = averageSpeed.toFixed(2);
+        },
+        updateDistance() {
+          this.distance = '';
+          this.averageSpeed = '';
+        },
+      },
+    });
+
+    app.mount('#app');
+  </script>
+</body>
+</html>
